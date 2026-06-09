@@ -1,0 +1,310 @@
+---
+title: "Atividade — Mistura de Normais e Gamas"
+author: "Wizard"
+date: last-modified
+format:
+  html:
+    code-fold: false
+    toc: true
+    theme: cosmo
+  pdf:
+    toc: true
+execute:
+  echo: true
+  warning: false
+---
+
+## Objetivo
+
+Gerar números aleatórios de duas distribuições misturadas e verificar o desempenho
+da simulação via gráficos e testes.
+
+- **Mistura de 3 Normais**  
+- **Mistura de 2 Gamas**  
+
+---
+
+## 1. Parâmetros das Misturas
+
+### Mistura de Normais (MN)
+
+\[
+\begin{aligned}
+f_{MN}(x) &= p_1\,\phi(x; \mu_1,\sigma_1^2) + p_2\,\phi(x; \mu_2,\sigma_2^2) + p_3\,\phi(x; \mu_3,\sigma_3^2) \\[4pt]
+\mu_1 &= -2, \quad \sigma_1^2 = 0{,}5, \quad p_1 = 0{,}5 \\
+\mu_2 &=  0, \quad \sigma_2^2 = 0{,}2, \quad p_2 = 0{,}1 \\
+\mu_3 &=  2, \quad \sigma_3^2 = 1, \quad p_3 = 0{,}4
+\end{aligned}
+\]
+
+### Mistura de Gamas (MG)
+
+\[
+\begin{aligned}
+f_{MG}(x) &= p_1\,f_{\Gamma}(\alpha_1,\lambda_1) + p_2\,f_{\Gamma}(\alpha_2,\lambda_2) \\[4pt]
+\alpha_1 &= 11, \quad \lambda_1 = \frac{1}{20}, \quad p_1 = \frac{2}{3} \\
+\alpha_2 &= 11, \quad \lambda_2 = \frac{7}{20}, \quad p_2 = \frac{1}{3}
+\end{aligned}
+\]
+
+```{r}
+#| include: false
+# Carregar pacotes
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+
+set.seed(42)  # reprodutibilidade
+```
+
+---
+
+## 2. Gerador de Números Aleatórios para Misturas
+
+A estratégia é:
+
+1. Sortear o componente com probabilidade $p_i$.
+2. Gerar um valor da distribuição do componente sorteado.
+
+```{r}
+#' Gera n números de uma mistura de distribuições
+#'
+#' @param n          número de observações
+#' @param rcomp      lista de funções que geram 1 valor de cada componente
+#' @param probs      vetor de probabilidades dos componentes
+#'
+#' @return vetor numérico de tamanho n
+r_mistura <- function(n, rcomp, probs) {
+  k <- length(probs)
+  componente <- sample(1:k, size = n, replace = TRUE, prob = probs)
+  sapply(componente, function(j) rcomp[[j]](1))
+}
+```
+
+### 2.1 Mistura de Normais — 100 números
+
+```{r}
+# Funções dos componentes
+rcomp_norm <- list(
+  function(n) rnorm(n, mean = -2, sd = sqrt(0.5)),   # comp 1
+  function(n) rnorm(n, mean =  0, sd = sqrt(0.2)),   # comp 2
+  function(n) rnorm(n, mean =  2, sd = 1)            # comp 3
+)
+
+probs_norm <- c(0.5, 0.1, 0.4)
+
+# Gerar 100 números
+mn_100 <- r_mistura(100, rcomp_norm, probs_norm)
+head(mn_100, 10)
+```
+
+### 2.2 Mistura de Gamas — 100 números
+
+A função `rgamma(n, shape, rate)` do R usa o parâmetro *rate* ($\lambda$).
+
+```{r}
+rcomp_gama <- list(
+  function(n) rgamma(n, shape = 11, rate = 1/20),   # comp 1
+  function(n) rgamma(n, shape = 11, rate = 7/20)    # comp 2
+)
+
+probs_gama <- c(2/3, 1/3)
+
+mg_100 <- r_mistura(100, rcomp_gama, probs_gama)
+head(mg_100, 10)
+```
+
+---
+
+## 3. Verificação de Desempenho
+
+### 3.1 Histograma + Densidade Teórica + Suavização (`density()`)
+
+#### Mistura de Normais
+
+```{r}
+# Densidade teórica da mistura de normais
+dmn <- function(x) {
+  0.5 * dnorm(x, -2, sqrt(0.5)) +
+  0.1 * dnorm(x,  0, sqrt(0.2)) +
+  0.4 * dnorm(x,  2, 1)
+}
+
+# Grid para a curva teórica
+x_grid <- seq(-5, 5, length.out = 500)
+
+df_mn <- tibble(x = mn_100)
+
+ggplot(df_mn, aes(x = x)) +
+  geom_histogram(aes(y = after_stat(density)),
+                 bins = 20, fill = "steelblue",
+                 color = "white", alpha = 0.7) +
+  geom_line(aes(x = x_grid, y = dmn(x_grid)),
+            color = "red", linewidth = 1, linetype = "dashed") +
+  geom_density(color = "darkgreen", linewidth = 1) +
+  labs(title = "Mistura de Normais",
+       subtitle = "Histograma + densidade teórica (tracejado) + suavização density() (verde)",
+       x = "x", y = "Densidade") +
+  theme_minimal()
+```
+
+#### Mistura de Gamas
+
+```{r}
+# Densidade teórica da mistura de gamas
+dmg <- function(x) {
+  (2/3) * dgamma(x, shape = 11, rate = 1/20) +
+  (1/3) * dgamma(x, shape = 11, rate = 7/20)
+}
+
+x_grid_g <- seq(0, 350, length.out = 500)
+
+df_mg <- tibble(x = mg_100)
+
+ggplot(df_mg, aes(x = x)) +
+  geom_histogram(aes(y = after_stat(density)),
+                 bins = 20, fill = "tomato",
+                 color = "white", alpha = 0.7) +
+  geom_line(aes(x = x_grid_g, y = dmg(x_grid_g)),
+            color = "red", linewidth = 1, linetype = "dashed") +
+  geom_density(color = "darkgreen", linewidth = 1) +
+  labs(title = "Mistura de Gamas",
+       subtitle = "Histograma + densidade teórica (tracejado) + suavização density() (verde)",
+       x = "x", y = "Densidade") +
+  xlim(0, 350) +
+  theme_minimal()
+```
+
+---
+
+### 3.2 Função de Distribuição Empírica + Teórica + Teste K-S
+
+#### Mistura de Normais
+
+```{r}
+# Função de distribuição teórica da mistura de normais
+pmn <- function(x) {
+  0.5 * pnorm(x, -2, sqrt(0.5)) +
+  0.1 * pnorm(x,  0, sqrt(0.2)) +
+  0.4 * pnorm(x,  2, 1)
+}
+
+# K-S test
+ks_norm <- ks.test(mn_100, pmn)
+ks_norm
+```
+
+```{r}
+# Gráfico ECDF + CDF teórica
+ggplot(df_mn, aes(x = x)) +
+  stat_ecdf(color = "steelblue", linewidth = 1) +
+  stat_function(fun = pmn, color = "red",
+                linewidth = 1, linetype = "dashed") +
+  labs(title = "Mistura de Normais — ECDF vs CDF Teórica",
+       subtitle = paste0("K-S D = ", round(ks_norm$statistic, 4),
+                         ", p-valor = ", round(ks_norm$p.value, 4)),
+       x = "x", y = "F(x)") +
+  theme_minimal()
+```
+
+#### Mistura de Gamas
+
+```{r}
+pmg <- function(x) {
+  (2/3) * pgamma(x, shape = 11, rate = 1/20) +
+  (1/3) * pgamma(x, shape = 11, rate = 7/20)
+}
+
+ks_gama <- ks.test(mg_100, pmg)
+ks_gama
+```
+
+```{r}
+ggplot(df_mg, aes(x = x)) +
+  stat_ecdf(color = "tomato", linewidth = 1) +
+  stat_function(fun = pmg, color = "red",
+                linewidth = 1, linetype = "dashed") +
+  labs(title = "Mistura de Gamas — ECDF vs CDF Teórica",
+       subtitle = paste0("K-S D = ", round(ks_gama$statistic, 4),
+                         ", p-valor = ", round(ks_gama$p.value, 4)),
+       x = "x", y = "F(x)") +
+  xlim(0, 350) +
+  theme_minimal()
+```
+
+---
+
+### 3.3 QQ-Plot das Misturas
+
+#### Mistura de Normais
+
+Para misturas, o QQ-plot contra uma Normal padrão não é adequado. Vamos usar
+um **QQ-plot teórico**: quantis empíricos vs quantis teóricos da mistura.
+
+```{r}
+# Quantis teóricos via inversão numérica da CDF
+qmn <- function(p) {
+  sapply(p, function(q) {
+    uniroot(function(x) pmn(x) - q, interval = c(-5, 5))$root
+  })
+}
+
+probs_qq <- ppoints(100)
+q_teo_norm <- qmn(probs_qq)
+q_emp_norm <- sort(mn_100)
+
+df_qq_norm <- tibble(teórico = q_teo_norm, empírico = q_emp_norm)
+
+ggplot(df_qq_norm, aes(x = teórico, y = empírico)) +
+  geom_point(color = "steelblue", size = 2) +
+  geom_abline(intercept = 0, slope = 1, color = "red",
+              linewidth = 1, linetype = "dashed") +
+  labs(title = "QQ-Plot — Mistura de Normais",
+       subtitle = "Quantis empíricos vs quantis teóricos da mistura",
+       x = "Quantis teóricos", y = "Quantis empíricos") +
+  coord_equal() +
+  theme_minimal()
+```
+
+#### Mistura de Gamas
+
+```{r}
+qmg <- function(p) {
+  sapply(p, function(q) {
+    uniroot(function(x) pmg(x) - q, interval = c(0, 400))$root
+  })
+}
+
+q_teo_gama <- qmg(probs_qq)
+q_emp_gama <- sort(mg_100)
+
+df_qq_gama <- tibble(teórico = q_teo_gama, empírico = q_emp_gama)
+
+ggplot(df_qq_gama, aes(x = teórico, y = empírico)) +
+  geom_point(color = "tomato", size = 2) +
+  geom_abline(intercept = 0, slope = 1, color = "red",
+              linewidth = 1, linetype = "dashed") +
+  labs(title = "QQ-Plot — Mistura de Gamas",
+       subtitle = "Quantis empíricos vs quantis teóricos da mistura",
+       x = "Quantis teóricos", y = "Quantis empíricos") +
+  coord_equal() +
+  theme_minimal()
+```
+
+---
+
+## 4. Conclusão
+
+Com base nos gráficos e no teste K-S:
+
+| Mistura | Estatística D | p-valor | Conclusão |
+|:--------|:--------------|:--------|:----------|
+| Normais | `r round(ks_norm$statistic, 4)` | `r round(ks_norm$p.value, 4)` | `r ifelse(ks_norm$p.value > 0.05, "Não rejeita H₀ (boa adequação)", "Rejeita H₀")` |
+| Gamas   | `r round(ks_gama$statistic, 4)` | `r round(ks_gama$p.value, 4)` | `r ifelse(ks_gama$p.value > 0.05, "Não rejeita H₀ (boa adequação)", "Rejeita H₀")` |
+
+- O histograma com a densidade teórica sobreposta e a suavização por `density()` mostra boa concordância visual.
+- A ECDF acompanha bem a CDF teórica.
+- O QQ-plot com pontos próximos da reta $y=x$ confirma que os números gerados
+  seguem a distribuição teórica esperada.
+- O teste K-S não rejeita a hipótese nula (a $p$-valor $> 0{,}05$), indicando
+  que a amostra é compatível com a distribuição especificada.
