@@ -1,14 +1,15 @@
 ---
 title: "Atividade — Mistura de Normais e Gamas"
-author: "Wizard"
-date: last-modified
+lang: pt-BR
+author: "Angelo dos Santos"
 format:
   html:
-    code-fold: false
-    toc: true
-    theme: cosmo
-  pdf:
-    toc: true
+    embed-resources: true
+    code-fold: true
+    code-summary: "Mostrar o código"
+    grid:
+      body-width: 800px
+      margin-width: 100px
 execute:
   echo: true
   warning: false
@@ -19,8 +20,8 @@ execute:
 Gerar números aleatórios de duas distribuições misturadas e verificar o desempenho
 da simulação via gráficos e testes.
 
-- **Mistura de 3 Normais**  
-- **Mistura de 2 Gamas**  
+- **Mistura de 3 Normais**
+- **Mistura de 2 Gamas**
 
 ---
 
@@ -48,12 +49,6 @@ f_{MG}(x) &= p_1\,f_{\Gamma}(\alpha_1,\lambda_1) + p_2\,f_{\Gamma}(\alpha_2,\lam
 \]
 
 ```{r}
-#| include: false
-# Carregar pacotes
-library(ggplot2)
-library(dplyr)
-library(tidyr)
-
 set.seed(42)  # reprodutibilidade
 ```
 
@@ -132,20 +127,19 @@ dmn <- function(x) {
 
 # Grid para a curva teórica
 x_grid <- seq(-5, 5, length.out = 500)
+dens_teo_norm <- dmn(x_grid)
+dens_suave_norm <- density(mn_100)
 
-df_mn <- tibble(x = mn_100)
-
-ggplot(df_mn, aes(x = x)) +
-  geom_histogram(aes(y = after_stat(density)),
-                 bins = 20, fill = "steelblue",
-                 color = "white", alpha = 0.7) +
-  geom_line(aes(x = x_grid, y = dmn(x_grid)),
-            color = "red", linewidth = 1, linetype = "dashed") +
-  geom_density(color = "darkgreen", linewidth = 1) +
-  labs(title = "Mistura de Normais",
-       subtitle = "Histograma + densidade teórica (tracejado) + suavização density() (verde)",
-       x = "x", y = "Densidade") +
-  theme_minimal()
+# Histograma com densidade teórica e suavização
+hist(mn_100, breaks = 20, freq = FALSE,
+     col = "steelblue", border = "white",
+     main = "Mistura de Normais",
+     xlab = "x", ylab = "Densidade")
+lines(x_grid, dens_teo_norm, col = "red", lwd = 2, lty = 2)
+lines(dens_suave_norm, col = "darkgreen", lwd = 2)
+legend("topright",
+       legend = c("Densidade teórica", "Suavização density()"),
+       col = c("red", "darkgreen"), lwd = 2, lty = c(2, 1))
 ```
 
 #### Mistura de Gamas
@@ -158,21 +152,19 @@ dmg <- function(x) {
 }
 
 x_grid_g <- seq(0, 350, length.out = 500)
+dens_teo_gama <- dmg(x_grid_g)
+dens_suave_gama <- density(mg_100)
 
-df_mg <- tibble(x = mg_100)
-
-ggplot(df_mg, aes(x = x)) +
-  geom_histogram(aes(y = after_stat(density)),
-                 bins = 20, fill = "tomato",
-                 color = "white", alpha = 0.7) +
-  geom_line(aes(x = x_grid_g, y = dmg(x_grid_g)),
-            color = "red", linewidth = 1, linetype = "dashed") +
-  geom_density(color = "darkgreen", linewidth = 1) +
-  labs(title = "Mistura de Gamas",
-       subtitle = "Histograma + densidade teórica (tracejado) + suavização density() (verde)",
-       x = "x", y = "Densidade") +
-  xlim(0, 350) +
-  theme_minimal()
+hist(mg_100, breaks = 20, freq = FALSE,
+     col = "tomato", border = "white",
+     main = "Mistura de Gamas",
+     xlab = "x", ylab = "Densidade",
+     xlim = c(0, 350))
+lines(x_grid_g, dens_teo_gama, col = "red", lwd = 2, lty = 2)
+lines(dens_suave_gama, col = "darkgreen", lwd = 2)
+legend("topright",
+       legend = c("Densidade teórica", "Suavização density()"),
+       col = c("red", "darkgreen"), lwd = 2, lty = c(2, 1))
 ```
 
 ---
@@ -195,16 +187,21 @@ ks_norm
 ```
 
 ```{r}
-# Gráfico ECDF + CDF teórica
-ggplot(df_mn, aes(x = x)) +
-  stat_ecdf(color = "steelblue", linewidth = 1) +
-  stat_function(fun = pmn, color = "red",
-                linewidth = 1, linetype = "dashed") +
-  labs(title = "Mistura de Normais — ECDF vs CDF Teórica",
-       subtitle = paste0("K-S D = ", round(ks_norm$statistic, 4),
-                         ", p-valor = ", round(ks_norm$p.value, 4)),
-       x = "x", y = "F(x)") +
-  theme_minimal()
+# ECDF
+ecdf_norm <- ecdf(mn_100)
+x_ecdf_norm <- sort(mn_100)
+
+plot(x_ecdf_norm, ecdf_norm(x_ecdf_norm), type = "s",
+     col = "steelblue", lwd = 2,
+     main = "Mistura de Normais — ECDF vs CDF Teórica",
+     xlab = "x", ylab = "F(x)")
+curve(pmn, add = TRUE, col = "red", lwd = 2, lty = 2)
+legend("topleft",
+       legend = c("ECDF", "CDF teórica"),
+       col = c("steelblue", "red"), lwd = 2, lty = c(1, 2))
+mtext(paste0("K-S D = ", round(ks_norm$statistic, 4),
+             ", p-valor = ", round(ks_norm$p.value, 4)),
+      side = 3, cex = 0.8)
 ```
 
 #### Mistura de Gamas
@@ -220,16 +217,21 @@ ks_gama
 ```
 
 ```{r}
-ggplot(df_mg, aes(x = x)) +
-  stat_ecdf(color = "tomato", linewidth = 1) +
-  stat_function(fun = pmg, color = "red",
-                linewidth = 1, linetype = "dashed") +
-  labs(title = "Mistura de Gamas — ECDF vs CDF Teórica",
-       subtitle = paste0("K-S D = ", round(ks_gama$statistic, 4),
-                         ", p-valor = ", round(ks_gama$p.value, 4)),
-       x = "x", y = "F(x)") +
-  xlim(0, 350) +
-  theme_minimal()
+ecdf_gama <- ecdf(mg_100)
+x_ecdf_gama <- sort(mg_100)
+
+plot(x_ecdf_gama, ecdf_gama(x_ecdf_gama), type = "s",
+     col = "tomato", lwd = 2,
+     main = "Mistura de Gamas — ECDF vs CDF Teórica",
+     xlab = "x", ylab = "F(x)", xlim = c(0, 350))
+curve(pmg, add = TRUE, col = "red", lwd = 2, lty = 2,
+      from = 0, to = 350)
+legend("topleft",
+       legend = c("ECDF", "CDF teórica"),
+       col = c("tomato", "red"), lwd = 2, lty = c(1, 2))
+mtext(paste0("K-S D = ", round(ks_gama$statistic, 4),
+             ", p-valor = ", round(ks_gama$p.value, 4)),
+      side = 3, cex = 0.8)
 ```
 
 ---
@@ -253,17 +255,11 @@ probs_qq <- ppoints(100)
 q_teo_norm <- qmn(probs_qq)
 q_emp_norm <- sort(mn_100)
 
-df_qq_norm <- tibble(teórico = q_teo_norm, empírico = q_emp_norm)
-
-ggplot(df_qq_norm, aes(x = teórico, y = empírico)) +
-  geom_point(color = "steelblue", size = 2) +
-  geom_abline(intercept = 0, slope = 1, color = "red",
-              linewidth = 1, linetype = "dashed") +
-  labs(title = "QQ-Plot — Mistura de Normais",
-       subtitle = "Quantis empíricos vs quantis teóricos da mistura",
-       x = "Quantis teóricos", y = "Quantis empíricos") +
-  coord_equal() +
-  theme_minimal()
+plot(q_teo_norm, q_emp_norm, type = "p", pch = 16,
+     col = "steelblue",
+     main = "QQ-Plot — Mistura de Normais",
+     xlab = "Quantis teóricos", ylab = "Quantis empíricos")
+abline(a = 0, b = 1, col = "red", lwd = 2, lty = 2)
 ```
 
 #### Mistura de Gamas
@@ -278,17 +274,11 @@ qmg <- function(p) {
 q_teo_gama <- qmg(probs_qq)
 q_emp_gama <- sort(mg_100)
 
-df_qq_gama <- tibble(teórico = q_teo_gama, empírico = q_emp_gama)
-
-ggplot(df_qq_gama, aes(x = teórico, y = empírico)) +
-  geom_point(color = "tomato", size = 2) +
-  geom_abline(intercept = 0, slope = 1, color = "red",
-              linewidth = 1, linetype = "dashed") +
-  labs(title = "QQ-Plot — Mistura de Gamas",
-       subtitle = "Quantis empíricos vs quantis teóricos da mistura",
-       x = "Quantis teóricos", y = "Quantis empíricos") +
-  coord_equal() +
-  theme_minimal()
+plot(q_teo_gama, q_emp_gama, type = "p", pch = 16,
+     col = "tomato",
+     main = "QQ-Plot — Mistura de Gamas",
+     xlab = "Quantis teóricos", ylab = "Quantis empíricos")
+abline(a = 0, b = 1, col = "red", lwd = 2, lty = 2)
 ```
 
 ---
@@ -297,14 +287,23 @@ ggplot(df_qq_gama, aes(x = teórico, y = empírico)) +
 
 Com base nos gráficos e no teste K-S:
 
-| Mistura | Estatística D | p-valor | Conclusão |
-|:--------|:--------------|:--------|:----------|
-| Normais | `r round(ks_norm$statistic, 4)` | `r round(ks_norm$p.value, 4)` | `r ifelse(ks_norm$p.value > 0.05, "Não rejeita H₀ (boa adequação)", "Rejeita H₀")` |
-| Gamas   | `r round(ks_gama$statistic, 4)` | `r round(ks_gama$p.value, 4)` | `r ifelse(ks_gama$p.value > 0.05, "Não rejeita H₀ (boa adequação)", "Rejeita H₀")` |
+```{r}
+# Tabela de conclusão
+cat("| Mistura | Estatística D | p-valor | Conclusão |\n")
+cat("|:--------|:--------------|:--------|:----------|\n")
+cat(sprintf("| Normais | %.4f | %.4f | %s |\n",
+    ks_norm$statistic, ks_norm$p.value,
+    ifelse(ks_norm$p.value > 0.05,
+           "Não rejeita H₀ (boa adequação)",
+           "Rejeita H₀")))
+cat(sprintf("| Gamas   | %.4f | %.4f | %s |\n",
+    ks_gama$statistic, ks_gama$p.value,
+    ifelse(ks_gama$p.value > 0.05,
+           "Não rejeita H₀ (boa adequação)",
+           "Rejeita H₀")))
+```
 
 - O histograma com a densidade teórica sobreposta e a suavização por `density()` mostra boa concordância visual.
 - A ECDF acompanha bem a CDF teórica.
-- O QQ-plot com pontos próximos da reta $y=x$ confirma que os números gerados
-  seguem a distribuição teórica esperada.
-- O teste K-S não rejeita a hipótese nula (a $p$-valor $> 0{,}05$), indicando
-  que a amostra é compatível com a distribuição especificada.
+- O QQ-plot com pontos próximos da reta $y=x$ confirma que os números gerados seguem a distribuição teórica esperada.
+- O teste K-S não rejeita a hipótese nula (a $p$-valor $> 0{,}05$), indicando que a amostra é compatível com a distribuição especificada.
