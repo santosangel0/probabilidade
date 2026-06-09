@@ -16,7 +16,7 @@ execute:
 ---
 
 ```{r}
-set.seed(1)
+set.seed(42)
 ```
 
 ------------------------------------------------------------------------
@@ -64,7 +64,7 @@ rcomp_gama <- list(
 
 probs_gama <- c(2/3, 1/3)
 
-mg_100 <- mistura(100, rcomp_gama, probs_gama)
+mg_100 <- r_mistura(100, rcomp_gama, probs_gama)
 head(mg_100, 10)
 ```
 
@@ -115,7 +115,7 @@ dens_teo_gama <- dmg(x_grid_g)
 dens_suave_gama <- density(mg_100)
 
 hist(mg_100, breaks = 20, freq = FALSE,
-     col = "steelblue", border = "white",
+     col = "tomato", border = "white",
      main = "Mistura de Gamas",
      xlab = "x", ylab = "Densidade",
      xlim = c(0, 350))
@@ -180,14 +180,14 @@ ecdf_gama <- ecdf(mg_100)
 x_ecdf_gama <- sort(mg_100)
 
 plot(x_ecdf_gama, ecdf_gama(x_ecdf_gama), type = "s",
-     col = "steelblue", lwd = 2,
+     col = "tomato", lwd = 2,
      main = "Mistura de Gamas — ECDF vs CDF Teórica",
      xlab = "x", ylab = "F(x)", xlim = c(0, 350))
 curve(pmg, add = TRUE, col = "red", lwd = 2, lty = 2,
       from = 0, to = 350)
 legend("topleft",
        legend = c("ECDF", "CDF teórica"),
-       col = c("steelblue", "red"), lwd = 2, lty = c(1, 2))
+       col = c("tomato", "red"), lwd = 2, lty = c(1, 2))
 mtext(paste0("K-S D = ", round(ks_gama$statistic, 4),
              ", p-valor = ", round(ks_gama$p.value, 4)),
       side = 3, cex = 0.8)
@@ -233,7 +233,7 @@ q_teo_gama <- qmg(probs_qq)
 q_emp_gama <- sort(mg_100)
 
 plot(q_teo_gama, q_emp_gama, type = "p", pch = 16,
-     col = "steelblue",
+     col = "tomato",
      main = "QQ-Plot — Mistura de Gamas",
      xlab = "Quantis teóricos", ylab = "Quantis empíricos")
 abline(a = 0, b = 1, col = "red", lwd = 2, lty = 2)
